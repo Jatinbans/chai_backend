@@ -13,4 +13,11 @@ app.use(express.urlencoded({extended: true,limit:"16kb"})) // space nu %20
 app.use(express.static("public")) // assets,images 
 app.use(cookieParser()) //cookies nu server hi read kr skda
 
+
+//routes import 
+import userRouter from "./routes/user.routes.js";
+
+
+//routes declartion
+app.use("/api/v1/users",userRouter)
 export{ app }
