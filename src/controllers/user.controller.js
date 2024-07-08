@@ -253,7 +253,7 @@ const updateAccountDetails = asyncHandler(async(req,res)=>{
         throw new Apierror(400,"all fields are required")
     }
 
-    const user = User.findByIdAndUpdate(
+    const user = await User.findByIdAndUpdate(
         req.user?._id,
         {
             $set:{
@@ -321,6 +321,72 @@ const updateUserCoverImage = asyncHandler(async(req,res)=>{
     .json(new Apierror(200,user,"coverImage updated successfully"))
 })
 
+const getUserChannelProfile = asyncHandler(async(rrq,res)=>{
+    const {username} = req.params
+    if(!username?.trim()){
+        throw new Apierror(400,"username is missing")
+    }
+
+   const channel = await User.aggregate([
+    //pipleines
+    {
+        $match:{
+            username:username?.toLowerCase()
+        }
+    },
+    {
+           //subscribers
+        $lookup:{
+            from: "subscriptions",
+            localField:"_id",
+            foreignField:"channel",
+            as:"subscribers"
+
+        }
+    },
+    {
+        //subscribedTo
+        $lookup:{
+            from: "subscriptions",
+            localField:"_id",
+            foreignField:"subscriber",
+            as:"subscribedTo"
+        }
+    },
+
+    {
+        $addFields:{
+            subscribersCount: {
+                $size:"$subscribers"
+            },
+            channelsSubscribedToCount:{
+                $size:"$subscribedTo"
+            },
+            isSubscribed:{
+                $cond:{
+                    if:{$in: [req.user?._id,"$subscribers.subscriber"]},
+                    then: true,
+                    else:false
+                }
+            }
+        }
+    },
+    {
+        $project:{
+            fullname:1,
+            username:1,
+            subscribersCount:1,
+            channelsSubscribedToCount:1,
+            isSubscribed:1,
+            avatar:1,
+            coverImage:1,
+            email:1
+
+
+        }
+    }
+   ])
+})
 
 export {
     registerUser,
@@ -332,5 +398,12 @@ export {
     updateAccountDetails,
     updateUserAvatar,
     updateUserCoverImage,
+    getUserChannelProfile,
 
 }
+
+
+
+//kise vi channel de subscriber count krne aa je
+//apa document oh dekhna jide ch channel da naam aa reha 
+//oh documents count krne aa jithe channel match kr reha
