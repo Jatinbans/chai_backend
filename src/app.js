@@ -15,9 +15,8 @@ app.use(cookieParser()) //cookies nu server hi read kr skda
 
 
 //routes import 
-import userRouter from "./routes/user.routes.js";
-
+import userRouter from "../src/routes/user.routes.js"
 
 //routes declartion
-app.use("/api/v1/users",userRouter)
+app.use("/api/v1/users", userRouter)
 export{ app }

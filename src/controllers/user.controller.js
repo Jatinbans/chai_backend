@@ -4,7 +4,8 @@ import { User } from "../models/user.models.js";
 import {uploadOnCloudinary} from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/Apiresponse.js";
 import { response } from "express";
-import { jwt } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
+import mongoose, { mongo } from "mongoose";
 
 
 const generateAccessAndRefreshTokens = async(userId) =>
@@ -40,8 +41,9 @@ const registerUser = asyncHandler(async (req,res) =>{
     //     throw new Apierror(400,"fullname is required")
     // }
 
-    const {fullname,email,username,password} = req.body
+    const {fullname ,email ,username , password} = req.body
     // console.log("email:",email);
+    console.log(req.files)
 
     if(
         [fullname,email,username,password].some((field)=> 
@@ -57,19 +59,20 @@ const registerUser = asyncHandler(async (req,res) =>{
     if(existedUser){
         throw new Apierror(409,"user with email or username already exists")
     }
-    console.log(req.files);
+    // console.log(req.files);
 
 
     const avatarLocalPath = req.files?.avatar[0]?.path;
     // const coverImageLocalPath =req.files?.coverImage[0]?.path;
 
     let coverImageLocalPath;
-    if(req.files && Array.isArray(req.files.coverImage)&& req.files.coverImage.length > 0){
-        coverImageLocalPath = req.files?.coverImage[0].path
+
+    if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
+        coverImageLocalPath = req.files.coverImage[0].path
     }
 
     if(!avatarLocalPath){
-        throw new Apierror(400,"avatar file is required")
+        throw new Apierror(400,"avatar file is required");
     }
     const avatar = await uploadOnCloudinary(avatarLocalPath)
     const coverImage = await uploadOnCloudinary(coverImageLocalPath)
@@ -81,7 +84,9 @@ const registerUser = asyncHandler(async (req,res) =>{
     const user = await User.create({
         fullname,
         avatar:avatar.url,
-        coverImage: coverImage?.url|| "",
+        avatar:"avatar.url",
+        coverImage: coverImage?.url || "",
+        coverImage: "",
         email,
         password,
         username:username.toLowerCase()
@@ -395,6 +400,58 @@ const getUserChannelProfile = asyncHandler(async(rrq,res)=>{
    .json(new ApiResponse(200,channel[0],"user channel fetched succesfully"))
 })
 
+const getWatchHistory = asyncHandler(async(req,res)=>{
+    const user = await User.aggregate([
+
+        {
+            $match:{
+                _id : new mongoose.Types.ObjectId(req.user._id)
+                
+            }
+        },
+        {
+            $lookup:{
+                from:"videos",
+                localField:"watchHistory",
+                foreignField:"_id",
+                as:"watchHistory",
+                pipeline:[
+                    {
+                        $lookup:{
+                            from:"users",
+                            localField:"owner",
+                            foreignField:"_id",
+                            as:"owner",
+
+                            pipeline:[
+                                {
+                                    $project:{
+                                        fullname:1,
+                                        username:1,
+                                        avatar:1,
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    //array nu sudharna hai ethe pipeline ch
+                    {
+                        $addFields:{
+                            owner:{
+                                $first:"$owner"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ])
+
+    return res.status(200)
+    .json(new ApiResponse(200,user[0].watchHistory,"watch history fetched successfully"))
+
+})
+
 export {
     registerUser,
     loginUser,
@@ -406,8 +463,10 @@ export {
     updateUserAvatar,
     updateUserCoverImage,
     getUserChannelProfile,
+    getWatchHistory,
 
 }
+
 
 
 
